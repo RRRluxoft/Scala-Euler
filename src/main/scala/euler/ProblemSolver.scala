@@ -1,7 +1,21 @@
+
+/**
+  * Problem described here: http://projecteuler.net/problem=67
+  */
 object ProblemSolver {
 
   type Path = List[Int]
-  type Point = (Int, Int)
+
+  def gt[T2](tuple: ((Int, T2), (Int, T2))) = if (tuple._1._1 >= tuple._2._1) tuple._1 else tuple._2
+  def f: Int => (Int, List[Int])            = elem => (elem, elem :: Nil)
+  def ff: ((Int, (Int, Path))) => (Int, Path) =
+    elem => (elem._1 + elem._2._1, elem._1 :: elem._2._2)
+  def fff: ((Int, ((Int, Path), (Int, Path)))) => (Int, Path) =
+    elem => {
+      val i = elem._1
+      val t = gt(elem._2._1, elem._2._2)
+      (i + t._1, i :: t._2)
+    }
 
   /**
     * Find the optimal solution (path with maximum sum)
@@ -10,22 +24,9 @@ object ProblemSolver {
     * @param data
     * @return
     */
-  def findOptimalPaths(data: List[List[Int]]): List[Path] = {
-    val arr = data map (_.toArray) toArray
-    val mem = collection.mutable.WeakHashMap[(Int, Int), Stream[Path]]()
-    def allPaths(p: Point): Stream[Path] = {
-      val (r, c) = p
-      val current: Int = arr(r)(c)
-      if (r < arr.length - 1) {
-        val below: Stream[Path] = {
-          if ( (0 until arr(r + 1).length - 1).contains(c)) mem.getOrElseUpdate((r, c), Stream.concat[Path](allPaths(r + 1, c), allPaths(r + 1, c + 1)))
-          else mem.getOrElseUpdate((r, c), Stream.concat(allPaths(r + 1, c)))
-        }
-        below.map(list => current :: list)
-      }
-      else Stream(current :: Nil)
-    }
-    allPaths((0, 0)).toList
+  def findOptimalPaths(data: List[List[Int]]): List[Path] = data match {
+    case Nil  => List[Path]()
+    case data => solve(data).map(_._2)
   }
 
   /**
@@ -33,18 +34,20 @@ object ProblemSolver {
     * @param paths
     * @return
     */
-  def chooseBestPath(paths: List[Path]): Option[Path] = paths match {
-    case Nil   => None
-    case paths => Some(paths.maxBy(_.sum)) //paths.find( e => Ordering[Int].gteq(e.sum, e.sum))
-  }
+  def chooseBestPath(paths: List[Path]): Option[Path] = Some(solve(paths).flatten(e => e._2))
 
-  def maxSum(data: List[List[Int]]): Int =
-    data.reduceRight(
-        (upper: List[Int], lower) =>
-          upper zip (lower zip lower.tail) map {
-            case (above, (l, r)) => above + Math.max(l, r)
-          }
-      )
-      .head
+  def solve(data: List[Path]): List[(Int, Path)] = data match {
+    case Nil => List[(Int, Path)]((0, List()))
+    case data =>
+      val line0 = data.reverse.head map f
+      @scala.annotation.tailrec
+      def procc(lines: List[List[Int]], res: List[(Int, Path)]): List[(Int, Path)] = lines match {
+        case Nil => res
+        case x :: xs =>
+          val acc = (x zip (res zip res.tail)) map fff
+          procc(xs, acc)
+      }
+      procc(data.reverse.tail, line0)
+  }
 
 }
